@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIFL Competition System</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1d2330; --muted: #5f6b7a; --line: #d9dee6;
+  --accent: #1f5fbf; --accent-ink: #ffffff; --good: #1f7a3d; --warn: #9a6100; --bad: #b42318;
+  --soft: #eef3fb;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171d; --panel: #1d222b; --ink: #e8ecf2; --muted: #9aa5b5; --line: #323b48;
+    --accent: #6ea8ff; --accent-ink: #0b1220; --good: #5cc27f; --warn: #e0a84a; --bad: #ff8a80;
+    --soft: #222b3a;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171d; --panel: #1d222b; --ink: #e8ecf2; --muted: #9aa5b5; --line: #323b48;
+  --accent: #6ea8ff; --accent-ink: #0b1220; --good: #5cc27f; --warn: #e0a84a; --bad: #ff8a80;
+  --soft: #222b3a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 16px;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+header h1 { font-size: 18px; margin: 0; }
+nav { display: flex; flex-wrap: wrap; gap: 4px; }
+nav button { background: none; border: 1px solid transparent; color: var(--muted); padding: 6px 10px;
+  border-radius: 6px; cursor: pointer; font: inherit; }
+nav button.active { color: var(--accent); border-color: var(--line); background: var(--soft); }
+main { padding: 16px; max-width: 1200px; margin: 0 auto; }
+section { display: none; }
+section.active { display: block; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; margin: 0 0 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 10px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+input, select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 9px; min-width: 0; }
+button, .btn { font: inherit; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px;
+  padding: 8px 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+button.secondary { background: var(--soft); color: var(--ink); border: 1px solid var(--line); }
+button.danger { background: var(--bad); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tag { display: inline-block; font-size: 12px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); }
+.s-matched { color: var(--good); } .s-review { color: var(--warn); } .s-new { color: var(--accent); }
+.s-error { color: var(--bad); }
+.muted { color: var(--muted); font-size: 13px; }
+.note { background: var(--soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 10px; }
+.warn { color: var(--warn); }
+.bad { color: var(--bad); }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink);
+  color: var(--bg); padding: 10px 16px; border-radius: 8px; display: none; max-width: 92vw; z-index: 10; }
+#toast.error { background: var(--bad); color: #fff; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } main { padding: 12px; } }
+a { color: var(--accent); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SIFL Competition System</h1>
+  <nav id="nav">
+    <button data-tab="rankings" class="active">Rankings</button>
+    <button data-tab="results">Results</button>
+    <button data-tab="registrations">Registrations</button>
+    <button data-tab="events">Events</button>
+    <button data-tab="fencers">Fencers</button>
+    <button data-tab="reset">Reset &amp; history</button>
+    <button data-tab="backup">Backup</button>
+  </nav>
+</header>
+<main>
+
+<!-- RANKINGS -->
+<section id="tab-rankings" class="active">
+  <div class="card">
+    <h2>Current points</h2>
+    <div class="row">
+      <label>Weapon <select id="rk-weapon"></select></label>
+      <label>Gender <select id="rk-gender">
+        <option value="">All</option><option value="M">Men</option><option value="F">Women</option></select></label>
+      <button class="secondary" id="rk-refresh">Refresh</button>
+      <a class="btn secondary" id="rk-export" href="#">Export CSV</a>
+    </div>
+    <p class="muted" id="rk-info"></p>
+    <div class="table-wrap"><table><thead><tr>
+      <th class="num">Rank</th><th>ID</th><th>Name</th><th>Gender</th><th>Club</th><th class="num">Points</th>
+    </tr></thead><tbody id="rk-body"></tbody></table></div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="tab-results">
+  <div class="card">
+    <h2>Import FencingTime results</h2>
+    <div class="row">
+      <label>Event
+        <select id="rs-event"></select></label>
+      <label>Upload eventResults.csv <input type="file" id="rs-file" accept=".csv"></label>
+    </div>
+    <div id="rs-new" class="hidden">
+      <div class="row">
+        <label>Event name <input id="rs-new-name" placeholder="e.g. Sydney Open 2026 - Foil Men"></label>
+        <label>Date <input type="date" id="rs-new-date"></label>
+        <label>Weapon <select id="rs-new-weapon"></select></label>
+        <label>Gender <select id="rs-new-gender">
+          <option value="M">Men</option><option value="F">Women</option><option value="X">Mixed</option></select></label>
+      </div>
+    </div>
+    <div class="row"><button id="rs-preview">Check file</button></div>
+    <div id="rs-out"></div>
+  </div>
+</section>
+
+<!-- REGISTRATIONS -->
+<section id="tab-registrations">
+  <div class="card">
+    <h2>Import Google Form registrations</h2>
+    <div class="row">
+      <label>Round name <input id="rg-round" placeholder="e.g. Round 2 2026"></label>
+      <label>Date <input type="date" id="rg-date"></label>
+      <label>Registration file (.xlsx) <input type="file" id="rg-file" accept=".xlsx,.xls"></label>
+    </div>
+    <div class="row">
+      <span class="muted">Run as a mixed event:</span>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Epee"> Epee</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Foil"> Foil</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Saber"> Saber</label>
+    </div>
+    <div class="row"><button id="rg-preview">Check registrations</button></div>
+    <div id="rg-out"></div>
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section id="tab-events">
+  <div class="card">
+    <h2>Events</h2>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Event</th><th>Date</th><th>Round</th><th class="num">Entrants</th><th class="num">Results</th><th>Actions</th>
+    </tr></thead><tbody id="ev-body"></tbody></table></div>
+  </div>
+  <div class="card hidden" id="ev-detail"></div>
+</section>
+
+<!-- FENCERS -->
+<section id="tab-fencers">
+  <div class="card">
+    <h2>Fencers</h2>
+    <div class="row">
+      <label>Search by name, club or ID <input id="fc-q" placeholder="e.g. renouf"></label>
+      <button class="secondary" id="fc-go">Search</button>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>ID</th><th>Name</th><th>Gender</th><th>Club</th><th class="num">Epee</th><th class="num">Foil</th><th class="num">Saber</th>
+    </tr></thead><tbody id="fc-body"></tbody></table></div>
+  </div>
+  <div class="card hidden" id="fc-detail"></div>
+</section>
+
+<!-- RESET -->
+<section id="tab-reset">
+  <div class="card">
+    <h2>Reset points</h2>
+    <p class="note">Resetting sets the points of every fencer to zero, for all weapons together.
+      Results stay in the database and in the event history. Only events dated on or after the reset count towards points.
+      A backup is made first.</p>
+    <div class="row">
+      <label>Note <input id="rt-note" placeholder="e.g. Start of 2027 season"></label>
+      <button class="danger" id="rt-go">Reset all points</button>
+      <a class="btn secondary" href="/api/export/rankings?weapon=Epee">Export Epee rankings</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Reset history</h2>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Note</th></tr></thead><tbody id="rt-body"></tbody></table></div>
+    <h2 style="margin-top:16px">Event history</h2>
+    <p class="muted">Every event with its results is listed under Events.</p>
+  </div>
+</section>
+
+<!-- BACKUP -->
+<section id="tab-backup">
+  <div class="card">
+    <h2>Backups</h2>
+    <p class="muted">A backup is made automatically before every import, reset, delete and edit.</p>
+    <p id="bk-info" class="muted"></p>
+    <div class="row"><button id="bk-go">Back up now</button></div>
+    <p id="bk-out"></p>
+  </div>
+</section>
+
+</main>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const WEAPONS = ["Epee", "Foil", "Saber"];
+const GENDER_NAME = { M: "Men", F: "Women", X: "Mixed" };
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function toast(msg, isError) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = isError ? "error" : "";
+  t.style.display = "block";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => (t.style.display = "none"), isError ? 6000 : 3000);
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ("Request failed: " + res.status));
+  return data;
+}
+
+function readFile(input) {
+  return new Promise((resolve, reject) => {
+    const f = input.files && input.files[0];
+    if (!f) return reject(new Error("Choose a file first"));
+    const r = new FileReader();
+    r.onload = () => resolve({ filename: f.name, data_base64: String(r.result).split(",")[1] });
+    r.onerror = () => reject(new Error("Could not read the file"));
+    r.readAsDataURL(f);
+  });
+}
+
+function fileLinks(files) {
+  return (files || []).map((f) => f.url ? `<a href="${esc(f.url)}" download>${esc(f.name)}</a>` : esc(f.name)).join("<br>");
+}
+
+// ---------- tabs ----------
+function showTab(name) {
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll("main section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
+  const load = { rankings: loadRankings, results: loadEventOptions, events: loadEvents, fencers: searchFencers, reset: loadResets, backup: loadBackupInfo };
+  if (load[name]) load[name]();
+}
+document.querySelectorAll("#nav button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
+
+// ---------- rankings ----------
+async function loadRankings() {
+  const w = $("rk-weapon").value || "Epee";
+  const g = $("rk-gender").value;
+  const data = await api(`/api/rankings?weapon=${w}&gender=${g}`);
+  $("rk-info").textContent = `${w}${g ? " " + GENDER_NAME[g] : ""}. Points since ${data.latest_reset || "the start"}. Fencers with no points are included.`;
+  $("rk-body").innerHTML = data.rows.map((r) =>
+    `<tr><td class="num">${r.Ranking}</td><td>${esc(r.ID)}</td><td>${esc(r["First name"])} ${esc(r["Last name"])}</td>
+     <td>${esc(r.Gender)}</td><td>${esc(r.Club)}</td><td class="num">${r.Points}</td></tr>`).join("") || `<tr><td colspan="6" class="muted">No fencers yet</td></tr>`;
+  $("rk-export").href = `/api/export/rankings?weapon=${w}&gender=${g}`;
+}
+$("rk-weapon").innerHTML = WEAPONS.map((w) => `<option>${w}</option>`).join("");
+$("rk-weapon").onchange = loadRankings;
+$("rk-gender").onchange = loadRankings;
+$("rk-refresh").onclick = () => loadRankings().catch((e) => toast(e.message, true));
+
+// ---------- results ----------
+let eventsCache = [];
+async function loadEventOptions() {
+  const data = await api("/api/events");
+  eventsCache = data.events;
+  const opts = [`<option value="">+ New event</option>`].concat(
+    eventsCache.map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.event_date)})</option>`));
+  $("rs-event").innerHTML = opts.join("");
+  $("rs-new-weapon").innerHTML = WEAPONS.map((w) => `<option>${w}</option>`).join("");
+  $("rs-event").onchange = () => $("rs-new").classList.toggle("hidden", $("rs-event").value !== "");
+  $("rs-new").classList.toggle("hidden", $("rs-event").value !== "");
+}
+
+function decisionOptions(item, eventGender) {
+  const opts = [];
+  const cands = item.candidates || [];
+  if (item.status === "matched") opts.push({ v: "match:" + item.fencer_id, t: "Matched: " + cands[0].name });
+  cands.forEach((c) => {
+    if (item.status !== "matched" || c.id !== item.fencer_id) opts.push({ v: "match:" + c.id, t: `Use ${c.name} (${c.id}, ${c.gender}${c.club ? ", " + c.club : ""})` });
+  });
+  opts.push({ v: "new", t: "Create new fencer" });
+  opts.push({ v: "skip", t: "Skip this row" });
+  return opts;
+}
+
+function defaultDecision(item) {
+  if (item.status === "matched") return "match:" + item.fencer_id;
+  if (item.status === "new") return "new";
+  return "";
+}
+
+let resultsState = null;
+$("rs-preview").onclick = async () => {
+  try {
+    const file = await readFile($("rs-file"));
+    const ev = $("rs-event").value;
+    const spec = ev ? { competition_id: Number(ev) } : {
+      new: { name: $("rs-new-name").value, event_date: $("rs-new-date").value,
+             weapon: $("rs-new-weapon").value, event_gender: $("rs-new-gender").value } };
+    const data = await api("/api/results/preview", { file, event: spec });
+    resultsState = { file, spec, data };
+    renderResults();
+  } catch (e) { toast(e.message, true); }
+};
+
+function renderResults() {
+  const d = resultsState.data;
+  const eg = d.event.event_gender;
+  const rows = d.rows.map((item) => {
+    const def = defaultDecision(item);
+    let control = "";
+    if (item.status === "error") control = `<span class="bad">${esc(item.message)}</span>`;
+    else {
+      const opts = decisionOptions(item, eg);
+      control = `<select data-idx="${item.index}" class="rs-dec">
+        <option value="">Choose…</option>${opts.map((o) => `<option value="${esc(o.v)}" ${o.v === def ? "selected" : ""}>${esc(o.t)}</option>`).join("")}</select>`;
+      if (eg === "X") control += ` <select data-idx="${item.index}" class="rs-gender"><option value="">Gender…</option><option value="M">M</option><option value="F">F</option></select>`;
+    }
+    return `<tr><td>${esc(item.place)}</td><td>${esc(item.name)}</td><td>${esc(item.club)}</td>
+      <td class="num">${item.points ?? ""}</td>
+      <td><span class="tag s-${item.status}">${esc(item.status)}</span><div class="muted">${esc(item.message)}</div></td>
+      <td>${control}</td></tr>`;
+  }).join("");
+  const errors = d.rows.filter((r) => r.status === "error").length;
+  $("rs-out").innerHTML = `
+    <p class="note">${esc(d.event.weapon)} ${GENDER_NAME[eg]}. ${d.rows.length} rows.
+      ${errors ? `<span class="bad">${errors} row(s) have problems and must be fixed in the file.</span>` : "Check each row, then save."}</p>
+    <div class="table-wrap"><table><thead><tr><th>Place</th><th>Name</th><th>Club</th><th class="num">Points</th><th>Match</th><th>Decision</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin-top:12px"><button id="rs-commit" ${errors ? "disabled" : ""}>Save results</button>
+    <span class="muted">A backup is made first. An event that already has results cannot be saved twice.</span></div>`;
+  $("rs-commit").onclick = commitResults;
+}
+
+async function commitResults() {
+  const decisions = {};
+  let missing = 0;
+  document.querySelectorAll(".rs-dec").forEach((sel) => {
+    const idx = sel.dataset.idx;
+    const v = sel.value;
+    if (!v) { missing++; return; }
+    if (v === "skip") decisions[idx] = { action: "skip" };
+    else if (v === "new") {
+      const g = document.querySelector(`.rs-gender[data-idx="${idx}"]`);
+      decisions[idx] = { action: "new", gender: g ? g.value : undefined };
+    } else decisions[idx] = { action: "match", fencer_id: v.split(":")[1] };
+  });
+  if (missing) return toast(`${missing} row(s) still need a decision`, true);
+  try {
+    const out = await api("/api/results/commit", { file: resultsState.file, event: resultsState.spec, decisions });
+    const created = out.created.length ? ` New fencers: ${out.created.join(", ")}.` : "";
+    const warn = out.warnings.length ? ` Warnings: ${out.warnings.join("; ")}.` : "";
+    toast(`Saved ${out.saved} results.${created}${warn}`);
+    $("rs-out").innerHTML = `<p class="note">Saved ${out.saved} results. Backup: <span class="muted">${esc(out.backup)}</span>.${esc(created)}${esc(warn)}</p>`;
+    resultsState = null;
+    loadEventOptions();
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---------- registrations ----------
+let regState = null;
+function mixedWeapons() { return [...document.querySelectorAll(".rg-mixed:checked")].map((c) => c.value); }
+
+$("rg-preview").onclick = async () => {
+  try {
+    const file = await readFile($("rg-file"));
+    const data = await api("/api/registrations/preview", { file, mixed_weapons: mixedWeapons() });
+    regState = { file, data };
+    renderRegistrations();
+  } catch (e) { toast(e.message, true); }
+};
+
+function renderRegistrations() {
+  const d = regState.data;
+  const probs = d.problems.length ? `<div class="note bad">${d.problems.map(esc).join("<br>")}</div>` : "";
+  const events = d.events.map((e) => `<li>${esc(e.label)}: ${e.entrants} fencer(s)</li>`).join("");
+  const rows = d.people.map((p) => {
+    const opts = [];
+    if (p.status === "matched") opts.push({ v: "match:" + p.fencer_id, t: `Matched: ${p.candidates[0].name} (${p.fencer_id})` });
+    p.candidates.forEach((c) => { if (p.status !== "matched") opts.push({ v: "match:" + c.id, t: `Use ${c.name} (${c.id}, ${c.gender}${c.club ? ", " + c.club : ""})` }); });
+    opts.push({ v: "new", t: "Create new fencer" });
+    opts.push({ v: "skip", t: "Skip (do not register)" });
+    const def = p.status === "matched" ? "match:" + p.fencer_id : (p.status === "new" ? "new" : "");
+    return `<tr><td>${esc(p.name)}</td><td>${esc(p.gender)}</td><td>${esc(p.club)}</td><td>${esc(p.weapons.join(", "))}</td>
+      <td><span class="tag s-${p.status}">${esc(p.status)}</span><div class="muted">${esc(p.message)}</div></td>
+      <td><select class="rg-dec" data-key="${esc(p.key)}"><option value="">Choose…</option>
+      ${opts.map((o) => `<option value="${esc(o.v)}" ${o.v === def ? "selected" : ""}>${esc(o.t)}</option>`).join("")}</select>
+      <select class="rg-gender" data-key="${esc(p.key)}"><option value="">Gender from form (${esc(p.gender)})</option><option value="M">M</option><option value="F">F</option></select></td></tr>`;
+  }).join("");
+  $("rg-out").innerHTML = `${probs}
+    <p class="note">Events from this form:</p><ul>${events}</ul>
+    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Gender</th><th>Club</th><th>Weapons</th><th>Match</th><th>Decision</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin-top:12px"><button id="rg-commit">Create events and files</button>
+    <span class="muted">Needs a round name and date above. A backup is made first.</span></div>`;
+  $("rg-commit").onclick = commitRegistrations;
+}
+
+async function commitRegistrations() {
+  const round = $("rg-round").value.trim();
+  const date = $("rg-date").value;
+  if (!round || !date) return toast("Enter a round name and date", true);
+  const decisions = {};
+  let missing = 0;
+  document.querySelectorAll(".rg-dec").forEach((sel) => {
+    const key = sel.dataset.key;
+    const v = sel.value;
+    if (!v) { missing++; return; }
+    if (v === "skip") decisions[key] = { action: "skip" };
+    else if (v === "new") {
+      const g = document.querySelector(`.rg-gender[data-key="${CSS.escape(key)}"]`);
+      decisions[key] = { action: "new", gender: g && g.value ? g.value : undefined };
+    } else decisions[key] = { action: "match", fencer_id: v.split(":")[1] };
+  });
+  if (missing) return toast(`${missing} person(s) still need a decision`, true);
+  try {
+    const out = await api("/api/registrations/commit", { file: regState.file, round_name: round, event_date: date,
+      mixed_weapons: mixedWeapons(), decisions });
+    $("rg-out").innerHTML = `<p class="note">Created ${out.events.length} event(s) for ${esc(out.round)}.
+      ${out.created.length ? "New fencers: " + esc(out.created.join(", ")) + "." : ""}</p>
+      <p>Files (in ${esc(out.folder)}):</p><p>${fileLinks(out.files)}</p>
+      <p class="muted">Backup: ${esc(out.backup)}</p>`;
+    regState = null;
+    toast("Events created");
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---------- events ----------
+async function loadEvents() {
+  const data = await api("/api/events");
+  $("ev-body").innerHTML = data.events.map((e) => `<tr>
+      <td>${esc(e.name)}</td><td>${esc(e.event_date)}</td><td>${esc(e.round_name || "")}</td>
+      <td class="num">${e.entrants ?? ""}</td><td class="num">${e.results_count ?? ""}</td>
+      <td><button class="secondary" onclick="viewEvent(${e.id})">View</button>
+      <button class="secondary" onclick="exportEvent(${e.id})">Export files</button>
+      <button class="secondary" onclick="clearEvent(${e.id})">Clear results</button>
+      <button class="danger" onclick="deleteEvent(${e.id})">Delete</button></td></tr>`).join("")
+    || `<tr><td colspan="6" class="muted">No events yet</td></tr>`;
+}
+
+async function viewEvent(id) {
+  const d = await api(`/api/competition_results?id=${id}`);
+  const res = d.results.map((r) => `<tr><td>${esc(r.placing ?? "")}</td><td>${esc(r.first_name)} ${esc(r.last_name)}</td>
+    <td>${esc(r.club)}</td><td class="num">${r.points}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No results</td></tr>`;
+  const regs = d.registrations.map((r) => `<li>${esc(r.first_name)} ${esc(r.last_name)} (${esc(r.fencer_id)})</li>`).join("") || `<li class="muted">No registrations</li>`;
+  $("ev-detail").classList.remove("hidden");
+  $("ev-detail").innerHTML = `<h2>${esc(d.competition.name)}</h2>
+    <div class="grid2"><div><h2>Results</h2><div class="table-wrap"><table><thead><tr><th>Place</th><th>Name</th><th>Club</th><th class="num">Points</th></tr></thead><tbody>${res}</tbody></table></div></div>
+    <div><h2>Registered (${d.registrations.length})</h2><ul>${regs}</ul></div></div>`;
+}
+
+async function exportEvent(id) {
+  try {
+    const out = await api("/api/event/export", { id });
+    toast("Files created");
+    $("ev-detail").classList.remove("hidden");
+    $("ev-detail").innerHTML = `<h2>Export</h2><p>${fileLinks(out.files)}</p>`;
+  } catch (e) { toast(e.message, true); }
+}
+async function clearEvent(id) {
+  if (!confirm("Remove all results from this event? A backup is made first.")) return;
+  try { const out = await api("/api/event/clear", { id }); toast(`Cleared ${out.cleared} results`); loadEvents(); }
+  catch (e) { toast(e.message, true); }
+}
+async function deleteEvent(id) {
+  if (!confirm("Delete this event and its registrations and results? A backup is made first.")) return;
+  try { await api("/api/event/delete", { id }); toast("Event deleted"); loadEvents(); }
+  catch (e) { toast(e.message, true); }
+}
+window.viewEvent = viewEvent; window.exportEvent = exportEvent; window.clearEvent = clearEvent; window.deleteEvent = deleteEvent;
+
+// ---------- fencers ----------
+async function searchFencers() {
+  const q = $("fc-q").value.trim();
+  const data = await api("/api/fencers?q=" + encodeURIComponent(q));
+  $("fc-body").innerHTML = data.fencers.map((f) => `<tr style="cursor:pointer" onclick="openFencer('${esc(f.ID)}')">
+    <td>${esc(f.ID)}</td><td>${esc(f.name)}</td><td>${esc(f.Gender)}</td><td>${esc(f.Club)}</td>
+    <td class="num">${f.Epee}</td><td class="num">${f.Foil}</td><td class="num">${f.Saber}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="muted">No fencers found</td></tr>`;
+}
+$("fc-go").onclick = () => searchFencers().catch((e) => toast(e.message, true));
+$("fc-q").onkeydown = (e) => { if (e.key === "Enter") searchFencers().catch((er) => toast(er.message, true)); };
+
+async function openFencer(id) {
+  const d = await api("/api/fencer?id=" + encodeURIComponent(id));
+  const f = d.fencer;
+  const hist = d.history.map((h) => `<tr><td>${esc(h.date)}</td><td>${esc(h.event)}</td><td>${esc(h.weapon)}</td>
+    <td>${esc(h.placing ?? "")}</td><td class="num">${h.points}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">No results yet</td></tr>`;
+  const others = WEAPONS.map((w) => `${w}: <b>${d.points[w]}</b>`).join(" &nbsp; ");
+  $("fc-detail").classList.remove("hidden");
+  $("fc-detail").innerHTML = `
+    <h2>${esc(f.first_name)} ${esc(f.last_name)} <span class="muted">${esc(f.id)} · ${esc(f.gender)}</span></h2>
+    <p>${others}</p>
+    <p class="muted">Names on file: ${d.aliases.map((a) => esc(a)).join(", ") || "none"}.
+      Legacy IDs: ${esc(f.legacy_id || "none")}</p>
+    <div class="grid2">
+      <div class="card" style="margin:0"><h2>Edit</h2>
+        <div class="row"><label>First <input id="fe-first" value="${esc(f.first_name)}"></label>
+        <label>Last <input id="fe-last" value="${esc(f.last_name)}"></label>
+        <label>Club <input id="fe-club" value="${esc(f.club || "")}"></label></div>
+        <button id="fe-save">Save changes</button></div>
+      <div class="card" style="margin:0"><h2>Add another name</h2>
+        <div class="row"><label>First <input id="fa-first"></label><label>Last <input id="fa-last"></label></div>
+        <button class="secondary" id="fa-add">Add name</button>
+        <h2 style="margin-top:14px">Merge another fencer into this one</h2>
+        <div class="row"><label>Fencer ID to merge in <input id="fm-drop" placeholder="ID_012"></label>
+        <button class="danger" id="fm-go">Merge</button></div>
+        <p class="muted">Registrations, results and names of that ID move to ${esc(f.id)}. The other ID is removed.</p></div>
+    </div>
+    <h2 style="margin-top:16px">Points history</h2>
+    <div class="table-wrap"><table><thead><tr><th>Date</th><th>Event</th><th>Weapon</th><th>Place</th><th class="num">Points</th></tr></thead><tbody>${hist}</tbody></table></div>`;
+  $("fe-save").onclick = async () => {
+    try { await api("/api/fencer/update", { id: f.id, first: $("fe-first").value, last: $("fe-last").value, club: $("fe-club").value });
+      toast("Saved"); searchFencers(); openFencer(f.id); } catch (e) { toast(e.message, true); }
+  };
+  $("fa-add").onclick = async () => {
+    try { await api("/api/fencer/alias", { id: f.id, first: $("fa-first").value, last: $("fa-last").value });
+      toast("Name added"); openFencer(f.id); } catch (e) { toast(e.message, true); }
+  };
+  $("fm-go").onclick = async () => {
+    const drop = $("fm-drop").value.trim();
+    if (!drop || !confirm(`Merge ${drop} into ${f.id}? This cannot be undone except from a backup.`)) return;
+    try { await api("/api/fencer/merge", { keep: f.id, drop }); toast("Merged"); searchFencers(); openFencer(f.id); }
+    catch (e) { toast(e.message, true); }
+  };
+  $("fc-detail").scrollIntoView({ behavior: "smooth" });
+}
+window.openFencer = openFencer;
+
+// ---------- reset ----------
+async function loadResets() {
+  const data = await api("/api/resets");
+  $("rt-body").innerHTML = data.resets.map((r) => `<tr><td>${esc(r.reset_date)}</td><td>${esc(r.note || "")}</td></tr>`).join("")
+    || `<tr><td colspan="2" class="muted">No resets yet</td></tr>`;
+}
+$("rt-go").onclick = async () => {
+  if (!confirm("Reset all points to zero for every weapon? A backup is made first.")) return;
+  try { const out = await api("/api/reset", { note: $("rt-note").value }); toast("Points reset on " + out.reset_date); loadResets(); }
+  catch (e) { toast(e.message, true); }
+};
+
+// ---------- backup ----------
+async function loadBackupInfo() {
+  const s = await api("/api/state");
+  $("bk-info").textContent = `Database: ${s.db_path}. Backups folder: ${s.backup_dir}.`;
+}
+$("bk-go").onclick = async () => {
+  try { const out = await api("/api/backup", {}); $("bk-out").textContent = "Backup saved: " + out.backup; }
+  catch (e) { toast(e.message, true); }
+};
+
+// ---------- start ----------
+(async function init() {
+  $("rk-weapon").value = "Epee";
+  try {
+    const s = await api("/api/state");
+    $("rk-info").textContent = `${s.counts.fencers} fencers, ${s.counts.events} events, ${s.counts.results} results.`;
+  } catch (e) { toast("Could not reach the server: " + e.message, true); }
+  loadRankings().catch((e) => toast(e.message, true));
+})();
+</script>
+</body>
+</html>
