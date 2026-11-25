@@ -190,7 +190,7 @@ def resolve_event(conn, spec):
 
 
 def commit_results(conn, rows, decisions, weapon, event_gender,
-                   competition_id=None, event=None):
+                   competition_id=None, event=None, commit=True):
     """decisions: {row_index: {"action": "match"|"new"|"skip", "fencer_id"?, "gender"?}}.
 
     Every row that is not an automatic match needs a decision. Nothing is saved
@@ -255,7 +255,8 @@ def commit_results(conn, rows, decisions, weapon, event_gender,
                 warnings.append(f"{f['first_name']} {f['last_name']} was not registered for this event")
             db.add_result(conn, competition_id, fid, weapon, f["gender"],
                           item["place"], item["points"], note=f"FencingTime: {item['name']}")
-        conn.commit()
+        if commit:
+            conn.commit()
     except Exception:
         conn.rollback()
         raise
@@ -358,6 +359,8 @@ def resolve_people(conn, people, decisions):
         d = decisions.get(key)
         if d is None and p["status"] == "matched":
             d = {"action": "match", "fencer_id": p["fencer_id"]}
+        if d is None and p["status"] == "new":
+            d = {"action": "new"}
         if d is None:
             plan[key] = {"action": None, "fencer_id": None, "gender": p["gender"]}
         elif d["action"] == "skip":
@@ -622,3 +625,133 @@ def reset_points(conn, note=""):
     except Exception:
         conn.rollback()
         raise
+
+
+# ---------- bulk results import (one FencingTime file per event) ----------
+
+GENDER_TOKENS = {"men": "M", "mens": "M", "women": "F", "womens": "F", "mixed": "X"}
+
+
+def guess_event(filename, events):
+    """Match a results file name to one event by its weapon and gender words.
+    Returns the event id, or None unless exactly one event fits."""
+    low = str(filename).lower()
+    weapons = {w for word, w in WEAPON_WORDS if word in low}
+    if not weapons:
+        return None
+    tokens = set(re.split(r"[^a-z]+", low))
+    genders = {g for tok, g in GENDER_TOKENS.items() if tok in tokens}
+    hits = [e for e in events
+            if e["weapon"] in weapons and (not genders or e["event_gender"] in genders)]
+    return hits[0]["id"] if len(hits) == 1 else None
+
+
+def match_by_entrants(conn, rows, events, min_score=0.5):
+    """Match a results file to the event whose registered fencers best overlap the
+    fencers in the file (Jaccard score). Only events without results are considered.
+    Returns (event_id or None, {event_id: score})."""
+    file_ids = set()
+    for r in rows:
+        last, first = split_ft_name(r["name"])
+        found = db.find_fencers_by_name(conn, last, first)
+        if len(found) == 1:
+            file_ids.add(found[0])
+    if not file_ids:
+        return None, {}
+    scores = {}
+    for e in events:
+        if e["results_count"]:
+            continue
+        reg = {r["fencer_id"] for r in conn.execute(
+            "SELECT fencer_id FROM registrations WHERE competition_id = ?", (e["id"],))}
+        if reg:
+            scores[e["id"]] = len(file_ids & reg) / len(file_ids | reg)
+    if not scores:
+        return None, scores
+    best = max(scores.values())
+    winners = [k for k, v in scores.items() if v == best]
+    if best >= min_score and len(winners) == 1:
+        return winners[0], scores
+    return None, scores
+
+
+def bulk_preview(conn, files, assignments=None):
+    """files: [{"filename", "data": bytes}]. assignments: {file_index: competition_id}.
+    Without an assignment, a file is matched by its competitors first, then by its file name."""
+    assignments = assignments or {}
+    events = list_events(conn)
+    by_id = {e["id"]: e for e in events}
+    out = []
+    for i, f in enumerate(files):
+        item = {"index": i, "filename": f["filename"], "competition_id": None, "guess_by": "",
+                "event": None, "error": "", "rows": []}
+        try:
+            rows = read_results_file(f["data"])
+        except ValueError as e:
+            item["error"] = str(e)
+            out.append(item)
+            continue
+        cid = assignments.get(i)
+        if cid is None:
+            cid, _ = match_by_entrants(conn, rows, events)
+            if cid is not None:
+                item["guess_by"] = "competitors"
+            else:
+                cid = guess_event(f["filename"], events)
+                if cid is not None:
+                    item["guess_by"] = "file name"
+        item["competition_id"] = cid
+        if cid is None or int(cid) not in by_id:
+            item["error"] = "Could not match this file to an event. Choose it from the list"
+        else:
+            e = by_id[int(cid)]
+            item["competition_id"] = e["id"]
+            item["event"] = {k: e[k] for k in ("id", "name", "event_date", "weapon",
+                                                "event_gender", "results_count")}
+            if e["results_count"]:
+                item["error"] = "This event already has results. Clear them on the Events tab first"
+            else:
+                item["rows"] = preview_results(conn, rows, e["event_gender"])
+        out.append(item)
+    seen = {}
+    for item in out:
+        if item["competition_id"] is not None:
+            seen.setdefault(item["competition_id"], []).append(item)
+    for items in seen.values():
+        if len(items) > 1:
+            for item in items:
+                item["error"] = item["error"] or "Two files are assigned to the same event"
+    return {"files": out, "events": events}
+
+
+def bulk_commit(conn, files, assignments, decisions):
+    """Save every file in one transaction. Nothing is saved unless every file is ready.
+    decisions: {"<file index>": {"<row index>": {...}}}."""
+    prev = bulk_preview(conn, files, assignments)
+    problems = []
+    for f in prev["files"]:
+        if f["error"]:
+            problems.append(f"{f['filename']}: {f['error']}")
+        for r in f["rows"]:
+            if r["status"] == "error":
+                problems.append(f"{f['filename']}, row {r['index'] + 1}: {r['message']}")
+    if problems:
+        raise ValueError("Nothing was saved. Fix these first: " + "; ".join(problems))
+    saved = []
+    try:
+        for f in prev["files"]:
+            ev = f["event"]
+            file_decisions = {int(k): v for k, v in (decisions.get(str(f["index"])) or {}).items()}
+            rows = read_results_file(files[f["index"]]["data"])
+            try:
+                out = commit_results(conn, rows, file_decisions, ev["weapon"], ev["event_gender"],
+                                     competition_id=ev["id"], commit=False)
+            except ValueError as e:
+                raise ValueError(f"{f['filename']}: {e}") from None
+            saved.append({"filename": f["filename"], "event": ev["name"], "saved": out["saved"],
+                          "created": out["created"], "warnings": out["warnings"]})
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return saved

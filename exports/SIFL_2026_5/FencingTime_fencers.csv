@@ -1,0 +1,84 @@
+ID,First name,Last name,Club,Gender,Epee Points,Foil Points,Saber Points
+ID_109,Caitlin,Asper,Macquarie University Fencing,F,0,0,0
+ID_046,Brandon,Azari,Macquarie University Fencing,M,4,0,0
+ID_002,Matt,Baker,UNSW Fencing Club,M,26,0,0
+ID_134,Sami,Beaumont,Macquarie University Fencing,M,0,0,0
+ID_103,Oskar,Biggart,Macquarie University Fencing,M,0,0,0
+ID_056,Nick,CHAN,Macquarie University Fencing,M,0,0,22
+ID_031,Nicholas,Chen,Sydney University Fencing Club,M,8,0,0
+ID_005,William,Chen,Sydney University Fencing Club,M,34,0,0
+ID_113,Yiming,Chen,Sydney University Fencing Club,M,0,0,0
+ID_131,Adam,Chew,UNSW Fencing Club,M,0,0,0
+ID_066,Zihan,CHI,UNSW Fencing Club,M,0,0,8
+ID_072,Maurice,CHIU,UNSW Fencing Club,M,0,0,4
+ID_121,Joshua,Chung-Luong,UNSW Fencing Club,M,0,0,0
+ID_105,Alexander,Clancy,UNSW Fencing Club,M,0,0,0
+ID_011,Reagan,Clarke,Macquarie University Fencing,M,16,0,0
+ID_012,Cian,Connolly,Macquarie University Fencing,M,34,0,0
+ID_125,Julius,Corradini,UNSW Fencing Club,M,0,0,0
+ID_062,Ramon,CRISANTO,Macquarie University Fencing,M,0,0,12
+ID_110,Edain,Davies Barnier,Macquarie University Fencing,M,0,0,0
+ID_037,Thomas,Deller,UNSW Fencing Club,M,8,0,0
+ID_038,William,Deller,UNSW Fencing Club,M,14,0,0
+ID_098,Mai Phuong,DONG,UNSW Fencing Club,F,14,0,0
+ID_126,Jacob,Dowson,Macquarie University Fencing,M,0,0,0
+ID_084,Sara,Elliott,Sydney University Fencing Club,F,46,0,0
+ID_083,Orianna,Ellis,Sydney University Fencing Club,F,14,0,0
+ID_069,Thomas,FLANNERY,Macquarie University Fencing,M,0,0,8
+ID_132,Claire,Graham-White,UNSW Fencing Club,F,0,0,0
+ID_122,Ronan,Herbert,UNSW Fencing Club,M,0,0,0
+ID_045,Bingyu (Edward),Huang,UNSW Fencing Club,M,0,0,0
+ID_017,Lachlan,Humphery,Macquarie University Fencing,M,18,0,0
+ID_023,Steven,Ilin,UNSW Fencing Club,M,4,0,0
+ID_018,Dean,Johnsun,UNSW Fencing Club,M,4,0,0
+ID_065,Monish Reddy,KALAPUREDDY,UNSW Fencing Club,M,0,0,8
+ID_061,Victor,KANG,UNSW Fencing Club,M,0,0,12
+ID_041,Anthony,Kolat,Macquarie University Fencing,M,4,0,0
+ID_124,Flynn,Larkin,UNSW Fencing Club,M,0,0,0
+ID_027,Xavier,Lea,Sydney University Fencing Club,M,4,0,0
+ID_106,Ben,Lee,Sydney University Fencing Club,M,0,0,0
+ID_020,Hayden,Leung,Sydney University Fencing Club,M,8,0,0
+ID_111,Cici,Li,Sydney University Fencing Club,F,0,0,0
+ID_101,William,Li,Sydney University Fencing Club,M,0,0,0
+ID_007,Tom,Linigen,Macquarie University Fencing,M,22,0,0
+ID_075,Lan,LUC,Macquarie University Fencing,F,0,0,40
+ID_102,Daniel,Mautner,Sydney University Fencing Club,M,0,0,0
+ID_070,Harrison,MICHAELS,Macquarie University Fencing,M,0,0,8
+ID_004,Mark,Morris,Sydney University Fencing Club,M,20,0,0
+ID_035,Matthew,Ng,Sydney University Fencing Club,M,4,0,0
+ID_022,Brian,Paou,Macquarie University Fencing,M,12,0,0
+ID_099,Angela,Park,UNSW Fencing Club,F,0,0,0
+ID_112,Chaeyeon,Park,Sydney University Fencing Club,F,0,0,0
+ID_133,Jesse,Park,Sydney University Fencing Club,M,0,0,0
+ID_073,Joey,PARK,UNSW Fencing Club,M,0,0,4
+ID_100,Michael,Park,UNSW Fencing Club,M,0,0,0
+ID_008,Rui,Perera,Sydney University Fencing Club,M,14,0,0
+ID_089,Amelie,Read,Sydney University Fencing Club,F,34,0,0
+ID_050,Nelson,REN,UNSW Fencing Club,M,0,0,28
+ID_016,Derek,Renouf,Sydney University Fencing Club,M,12,0,0
+ID_024,Jasper,Renouf,Sydney University Fencing Club,M,12,0,0
+ID_006,Zachary,Renouf,Sydney University Fencing Club,M,22,0,0
+ID_135,Ami,Robinson,Sydney University Fencing Club,F,0,0,0
+ID_030,Sora,Robinson,Sydney University Fencing Club,M,32,0,0
+ID_119,Raphaela,Rotolo-Ross,Sydney University Fencing Club,F,0,0,0
+ID_055,Tejas,SABIRAJ,Sydney University Fencing Club,M,0,0,22
+ID_019,Jonathan,Shih,UNSW Fencing Club,M,8,0,0
+ID_051,Vivek,SINGLETON,UNSW Fencing Club,M,0,0,28
+ID_114,Alex,Su,Sydney University Fencing Club,M,0,0,0
+ID_015,Jarrod,Su,UNSW Fencing Club,M,16,0,0
+ID_120,Matthew,Sun,Macquarie University Fencing,M,0,0,0
+ID_130,Elijah,Temme,UNSW Fencing Club,M,0,0,0
+ID_127,yuk,Tsang,Macquarie University Fencing,F,0,0,0
+ID_116,Lai Chi,Tseung,Sydney University Fencing Club,M,0,0,0
+ID_078,Holly,WARDLAW,Sydney University Fencing Club,F,0,0,20
+ID_118,Haozhe,Wen,UNSW Fencing Club,M,0,0,0
+ID_117,Isaac,Wong,Sydney University Fencing Club,M,0,0,0
+ID_123,Zibo,Xia,Sydney University Fencing Club,M,0,0,0
+ID_107,Ruize,Xu,UNSW Fencing Club,M,0,0,0
+ID_047,George,YAKO,Macquarie University Fencing,M,0,0,40
+ID_104,Kerry,Yang,UNSW Fencing Club,M,0,0,0
+ID_108,Alma,Zentner-Pitman,Sydney University Fencing Club,F,0,0,0
+ID_003,Dan,Zhang,UNSW Fencing Club,M,20,0,0
+ID_115,Lucas,Zhang,UNSW Fencing Club,M,0,0,0
+ID_129,Nannan Ethan,Zhu,Sydney University Fencing Club,M,0,0,0
+ID_128,Youshang Daniel,Zhu,Sydney University Fencing Club,M,0,0,0

@@ -104,12 +104,11 @@ a { color: var(--accent); }
 <section id="tab-results">
   <div class="card">
     <h2>Import FencingTime results</h2>
-    <p class="muted">Choose the event. Events are created from the Registrations tab, so the weapon, gender, name and date come from there.</p>
+    <p class="muted">Pick one file per event, or all of them at once. Each file is matched to an event by its name (for example Foil_Mens.csv). Check the event shown on each file before saving.</p>
     <div class="row">
-      <label>Event <select id="rs-event"></select></label>
-      <label>Upload eventResults.csv <input type="file" id="rs-file" accept=".csv"></label>
+      <label>Results files (.csv) <input type="file" id="rs-files" accept=".csv" multiple></label>
+      <button id="rs-check">Check files</button>
     </div>
-    <div class="row"><button id="rs-preview">Check file</button></div>
     <div id="rs-out"></div>
   </div>
 </section>
@@ -118,11 +117,10 @@ a { color: var(--accent); }
 <section id="tab-registrations">
   <div class="card">
     <h2>Import Google Form registrations</h2>
-    <p class="muted">The round is named after the file, and the event date is today. Rename the file to change the round name.</p>
+    <p class="muted">The round is named after the file, and the event date is today. Rename the file to change the round name. The weapon and gender of each event come from the form. Only people who need a decision are shown.</p>
     <div class="row">
       <label>Registration file (.xlsx) <input type="file" id="rg-file" accept=".xlsx,.xls"></label>
     </div>
-  
     <div class="row"><button id="rg-preview">Check registrations</button></div>
     <div id="rg-out"></div>
   </div>
@@ -232,7 +230,7 @@ function fileLinks(files) {
 function showTab(name) {
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll("main section").forEach((s) => s.classList.toggle("active", s.id === "tab-" + name));
-  const load = { rankings: loadRankings, results: loadEventOptions, events: loadEvents, fencers: searchFencers, reset: loadResets, backup: loadBackupInfo };
+  const load = { rankings: loadRankings, events: loadEvents, fencers: searchFencers, reset: loadResets, backup: loadBackupInfo };
   if (load[name]) load[name]();
 }
 document.querySelectorAll("#nav button").forEach((b) => b.onclick = () => showTab(b.dataset.tab));
@@ -255,14 +253,6 @@ $("rk-refresh").onclick = () => loadRankings().catch((e) => toast(e.message, tru
 
 // ---------- results ----------
 let eventsCache = [];
-async function loadEventOptions() {
-  const data = await api("/api/events");
-  eventsCache = data.events;
-  $("rs-event").innerHTML = eventsCache.length
-    ? eventsCache.map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.event_date)})</option>`).join("")
-    : `<option value="">No events yet. Import registrations first</option>`;
-}
-
 function decisionOptions(item, eventGender) {
   const opts = [];
   const cands = item.candidates || [];
@@ -281,81 +271,103 @@ function defaultDecision(item) {
   return "";
 }
 
-let resultsState = null;
-$("rs-preview").onclick = async () => {
+// ---------- results (bulk) ----------
+let bulkState = null;
+
+function readFileObj(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve({ filename: f.name, data_base64: String(r.result).split(",")[1] });
+    r.onerror = () => reject(new Error("Could not read " + f.name));
+    r.readAsDataURL(f);
+  });
+}
+
+$("rs-check").onclick = async () => {
   try {
-    const file = await readFile($("rs-file"));
-    const ev = $("rs-event").value;
-    if (!ev) throw new Error("Choose an event. Import the registrations first to create it.");
-    const spec = { competition_id: Number(ev) };
-    const data = await api("/api/results/preview", { file, event: spec });
-    resultsState = { file, spec, data };
-    renderResults();
+    const picked = [...$("rs-files").files];
+    if (!picked.length) throw new Error("Choose one or more results files first");
+    const files = await Promise.all(picked.map(readFileObj));
+    bulkState = { files, assignments: {}, preview: null };
+    await runBulkCheck();
   } catch (e) { toast(e.message, true); }
 };
 
-function renderResults() {
-  const d = resultsState.data;
-  const eg = d.event.event_gender;
-  const rows = d.rows.map((item) => {
-    const def = defaultDecision(item);
-    let control = "";
-    if (item.status === "error") control = `<span class="bad">${esc(item.message)}</span>`;
-    else {
-      const opts = decisionOptions(item, eg);
-      control = `<select data-idx="${item.index}" class="rs-dec">
-        <option value="">Choose…</option>${opts.map((o) => `<option value="${esc(o.v)}" ${o.v === def ? "selected" : ""}>${esc(o.t)}</option>`).join("")}</select>`;
-      if (eg === "X") control += ` <select data-idx="${item.index}" class="rs-gender"><option value="">Gender…</option><option value="M">M</option><option value="F">F</option></select>`;
-    }
-    return `<tr><td>${esc(item.place)}</td><td>${esc(item.name)}</td><td>${esc(item.club)}</td>
-      <td class="num">${item.points ?? ""}</td>
-      <td><span class="tag s-${item.status}">${esc(item.status)}</span><div class="muted">${esc(item.message)}</div></td>
-      <td>${control}</td></tr>`;
-  }).join("");
-  const errors = d.rows.filter((r) => r.status === "error").length;
-  $("rs-out").innerHTML = `
-    <p class="note">${esc(d.event.weapon)} ${GENDER_NAME[eg]}. ${d.rows.length} rows.
-      ${errors ? `<span class="bad">${errors} row(s) have problems and must be fixed in the file.</span>` : "Check each row, then save."}</p>
-    <div class="table-wrap"><table><thead><tr><th>Place</th><th>Name</th><th>Club</th><th class="num">Points</th><th>Match</th><th>Decision</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>
-    <div class="row" style="margin-top:12px"><button id="rs-commit" ${errors ? "disabled" : ""}>Save results</button>
-    <span class="muted">A backup is made first. An event that already has results cannot be saved twice.</span></div>`;
-  $("rs-commit").onclick = commitResults;
+async function runBulkCheck() {
+  const data = await api("/api/results/bulk_preview", { files: bulkState.files, assignments: bulkState.assignments });
+  bulkState.preview = data;
+  data.files.forEach((f) => { if (f.competition_id != null) bulkState.assignments[f.index] = f.competition_id; });
+  renderBulk();
 }
 
-async function commitResults() {
+function renderBulk() {
+  const p = bulkState.preview;
+  if (!p.events.length) { $("rs-out").innerHTML = `<p class="note">There are no events yet. Import registrations first.</p>`; return; }
+  let anyBlocked = false;
+  const blocks = p.files.map((f) => {
+    let body = "";
+    if (f.error) { anyBlocked = true; body = `<p class="bad">${esc(f.error)}</p>`; }
+    else {
+      const eg = f.event.event_gender;
+      const rows = f.rows.map((item) => {
+        const def = defaultDecision(item);
+        let control = "";
+        if (item.status === "error") { anyBlocked = true; control = `<span class="bad">${esc(item.message)}</span>`; }
+        else {
+          control = `<select class="rs-dec" data-file="${f.index}" data-idx="${item.index}"><option value="">Choose…</option>${decisionOptions(item, eg).map((o) => `<option value="${esc(o.v)}" ${o.v === def ? "selected" : ""}>${esc(o.t)}</option>`).join("")}</select>`;
+          if (eg === "X") control += ` <select class="rs-gender" data-file="${f.index}" data-idx="${item.index}"><option value="">Gender…</option><option value="M">M</option><option value="F">F</option></select>`;
+        }
+        return `<tr><td>${esc(item.place)}</td><td>${esc(item.name)}</td><td>${esc(item.club)}</td><td class="num">${item.points ?? ""}</td><td><span class="tag s-${item.status}">${esc(item.status)}</span><div class="muted">${esc(item.message)}</div></td><td>${control}</td></tr>`;
+      }).join("");
+      body = `<div class="table-wrap"><table><thead><tr><th>Place</th><th>Name</th><th>Club</th><th class="num">Points</th><th>Match</th><th>Decision</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    const opts = `<option value="">— choose event —</option>` + p.events.map((e) =>
+      `<option value="${e.id}" ${e.id === f.competition_id ? "selected" : ""}>${esc(e.name)} (${esc(e.event_date)})</option>`).join("");
+    return `<div class="card"><h2>${esc(f.filename)}</h2>
+      <div class="row"><label>Event <select class="rs-event" data-file="${f.index}">${opts}</select></label>
+      ${f.guess_by ? `<span class="muted">matched by ${esc(f.guess_by)}</span>` : ""}</div>${body}</div>`;
+  }).join("");
+  $("rs-out").innerHTML = blocks + `<div class="row"><button id="rs-save-all" ${anyBlocked ? "disabled" : ""}>Save all results</button>
+    <span class="muted">${anyBlocked ? "Fix the files marked in red before saving. Nothing is saved until every file is ready." : "Nothing is saved until every file is ready. A backup is made first."}</span></div>`;
+  document.querySelectorAll(".rs-event").forEach((sel) => sel.onchange = () => {
+    bulkState.assignments[sel.dataset.file] = sel.value ? Number(sel.value) : null;
+    runBulkCheck().catch((e) => toast(e.message, true));
+  });
+  const save = $("rs-save-all");
+  if (save) save.onclick = saveAllResults;
+}
+
+async function saveAllResults() {
   const decisions = {};
   let missing = 0;
   document.querySelectorAll(".rs-dec").forEach((sel) => {
-    const idx = sel.dataset.idx;
-    const v = sel.value;
+    const f = sel.dataset.file, idx = sel.dataset.idx, v = sel.value;
     if (!v) { missing++; return; }
-    if (v === "skip") decisions[idx] = { action: "skip" };
+    decisions[f] = decisions[f] || {};
+    if (v === "skip") decisions[f][idx] = { action: "skip" };
     else if (v === "new") {
-      const g = document.querySelector(`.rs-gender[data-idx="${idx}"]`);
-      decisions[idx] = { action: "new", gender: g ? g.value : undefined };
-    } else decisions[idx] = { action: "match", fencer_id: v.split(":")[1] };
+      const g = document.querySelector(`.rs-gender[data-file="${f}"][data-idx="${idx}"]`);
+      decisions[f][idx] = { action: "new", gender: g && g.value ? g.value : undefined };
+    } else decisions[f][idx] = { action: "match", fencer_id: v.split(":")[1] };
   });
   if (missing) return toast(`${missing} row(s) still need a decision`, true);
   try {
-    const out = await api("/api/results/commit", { file: resultsState.file, event: resultsState.spec, decisions });
-    const created = out.created.length ? ` New fencers: ${out.created.join(", ")}.` : "";
-    const warn = out.warnings.length ? ` Warnings: ${out.warnings.join("; ")}.` : "";
-    toast(`Saved ${out.saved} results.${created}${warn}`);
-    $("rs-out").innerHTML = `<p class="note">Saved ${out.saved} results. Backup: <span class="muted">${esc(out.backup)}</span>.${esc(created)}${esc(warn)}</p>`;
-    resultsState = null;
-    loadEventOptions();
+    const out = await api("/api/results/bulk_commit", { files: bulkState.files, assignments: bulkState.assignments, decisions });
+    const lines = out.files.map((r) => `<li>${esc(r.filename)}: ${r.saved} results for ${esc(r.event)}${r.created.length ? ". New fencers: " + esc(r.created.join(", ")) : ""}${r.warnings.length ? ". Warnings: " + esc(r.warnings.join("; ")) : ""}</li>`);
+    $("rs-out").innerHTML = `<p class="note">Saved ${out.files.length} file(s). Backup: <span class="muted">${esc(out.backup)}</span></p><ul>${lines.join("")}</ul>`;
+    toast("Results saved");
+    bulkState = null;
   } catch (e) { toast(e.message, true); }
 }
 
 // ---------- registrations ----------
 let regState = null;
-function mixedWeapons() { return [...document.querySelectorAll(".rg-mixed:checked")].map((c) => c.value); }
+function mixedWeapons() { return []; }
 
 $("rg-preview").onclick = async () => {
   try {
     const file = await readFile($("rg-file"));
-    const data = await api("/api/registrations/preview", { file, mixed_weapons: mixedWeapons() });
+    const data = await api("/api/registrations/preview", { file, mixed_weapons: [] });
     regState = { file, data };
     renderRegistrations();
   } catch (e) { toast(e.message, true); }
@@ -364,30 +376,31 @@ $("rg-preview").onclick = async () => {
 function renderRegistrations() {
   const d = regState.data;
   const probs = d.problems.length ? `<div class="note bad">${d.problems.map(esc).join("<br>")}</div>` : "";
-  const events = d.events.map((e) => `<li>${esc(e.label)}: ${e.entrants} fencer(s)</li>`).join("");
-  const rows = d.people.map((p) => {
-    const opts = [];
-    if (p.status === "matched") opts.push({ v: "match:" + p.fencer_id, t: `Matched: ${p.candidates[0].name} (${p.fencer_id})` });
-    p.candidates.forEach((c) => { if (p.status !== "matched") opts.push({ v: "match:" + c.id, t: `Use ${c.name} (${c.id}, ${c.gender}${c.club ? ", " + c.club : ""})` }); });
+  const c = d.counts;
+  const review = d.people.filter((p) => p.status === "review");
+  const rows = review.map((p) => {
+    const opts = p.candidates.map((cand) => ({ v: "match:" + cand.id, t: `Use ${cand.name} (${cand.id}, ${cand.gender}${cand.club ? ", " + cand.club : ""})` }));
     opts.push({ v: "new", t: "Create new fencer" });
     opts.push({ v: "skip", t: "Skip (do not register)" });
-    const def = p.status === "matched" ? "match:" + p.fencer_id : (p.status === "new" ? "new" : "");
     return `<tr><td>${esc(p.name)}</td><td>${esc(p.gender)}</td><td>${esc(p.club)}</td><td>${esc(p.weapons.join(", "))}</td>
-      <td><span class="tag s-${p.status}">${esc(p.status)}</span><div class="muted">${esc(p.message)}</div></td>
+      <td><span class="muted">${esc(p.message)}</span></td>
       <td><select class="rg-dec" data-key="${esc(p.key)}"><option value="">Choose…</option>
-      ${opts.map((o) => `<option value="${esc(o.v)}" ${o.v === def ? "selected" : ""}>${esc(o.t)}</option>`).join("")}</select>
+      ${opts.map((o) => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join("")}</select>
       <select class="rg-gender" data-key="${esc(p.key)}"><option value="">Gender from form (${esc(p.gender)})</option><option value="M">M</option><option value="F">F</option></select></td></tr>`;
   }).join("");
+  const table = review.length
+    ? `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Gender</th><th>Club</th><th>Weapons</th><th>Why</th><th>Decision</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    : `<p class="note">Nothing needs a decision.</p>`;
   $("rg-out").innerHTML = `${probs}
-    <p class="note">Round <b>${esc(d.round_name)}</b>, event date ${esc(d.event_date)}. Events from this form:</p><ul>${events}</ul>
-    <div class="table-wrap"><table><thead><tr><th>Name</th><th>Gender</th><th>Club</th><th>Weapons</th><th>Match</th><th>Decision</th></tr></thead>
-    <tbody>${rows}</tbody></table></div>
+    <p class="note">${c.matched} matched automatically. ${c.new} new fencers will be added when you create the events. ${c.review} need a decision.</p>
+    ${table}
     <div class="row" style="margin-top:12px"><button id="rg-commit">Create events and files</button>
-    <span class="muted">Needs a round name and date above. A backup is made first.</span></div>`;
+    <span class="muted">A backup is made first.</span></div>`;
   $("rg-commit").onclick = commitRegistrations;
 }
 
 async function commitRegistrations() {
+  const round = regState.data.round_name;
   const decisions = {};
   let missing = 0;
   document.querySelectorAll(".rg-dec").forEach((sel) => {
@@ -402,10 +415,12 @@ async function commitRegistrations() {
   });
   if (missing) return toast(`${missing} person(s) still need a decision`, true);
   try {
-    const out = await api("/api/registrations/commit", { file: regState.file, mixed_weapons: mixedWeapons(), decisions });
-    $("rg-out").innerHTML = `<p class="note">Created ${out.events.length} event(s) for ${esc(out.round)}.
-      ${out.created.length ? "New fencers: " + esc(out.created.join(", ")) + "." : ""}</p>
-      <p>Files (in ${esc(out.folder)}):</p><p>${fileLinks(out.files)}</p>
+    const out = await api("/api/registrations/commit", { file: regState.file, mixed_weapons: [], decisions });
+    const added = out.created.length
+      ? `<details><summary>New fencers added (${out.created.length}). Click to see them</summary><ul>${out.created.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></details>`
+      : `<p class="muted">No new fencers were added.</p>`;
+    $("rg-out").innerHTML = `<p class="note">Files created for ${esc(out.round)}:</p>
+      <p>${fileLinks(out.files)}</p>${added}
       <p class="muted">Backup: ${esc(out.backup)}</p>`;
     regState = null;
     toast("Events created");

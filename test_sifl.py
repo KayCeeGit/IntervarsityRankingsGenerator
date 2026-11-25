@@ -252,6 +252,11 @@ def test_http(work):
         rp = json.loads(urllib.request.urlopen(rq).read())
         check("HTTP: round name taken from file name", rp["round_name"] == REG_FILE.stem, rp["round_name"])
         check("HTTP: event date defaults to today", len(rp["event_date"]) == 10)
+        bb = json.dumps({"files": [{"filename": "Foil_Mens.csv", "data_base64": b64(RESULTS_FILE)}]}).encode()
+        bq = urllib.request.Request(base + "/api/results/bulk_preview", data=bb, method="POST",
+                                    headers={"Content-Type": "application/json"})
+        bp = json.loads(urllib.request.urlopen(bq).read())
+        check("HTTP: bulk preview returns one file", len(bp["files"]) == 1 and "events" in bp)
         req = urllib.request.Request(base + "/api/backup", data=b"{}", method="POST",
                                      headers={"Content-Type": "application/json"})
         bk = json.loads(urllib.request.urlopen(req).read())
@@ -309,6 +314,9 @@ def main():
         conn.commit()
         test_backup(work)
         conn.close()
+        print("\nBulk results (one file per event)")
+        test_bulk(work)
+        test_match_by_competitors(work)
         print("\nHTTP server")
         test_http(work)
     finally:
@@ -318,6 +326,88 @@ def main():
             print("  FAILED:", n)
         shutil.rmtree(work, ignore_errors=True)
     sys.exit(1 if failed else 0)
+
+
+
+def test_bulk(work):
+    c = db.connect(Path(work) / "bulk.db")
+    db.init_db(c)
+    ev = lambda name, w, g: db.add_competition(c, name=name, kind="event", event_date="2026-11-10",
+                                               weapon=w, event_gender=g, round_name="Bulk")
+    foil = ev("Bulk Foil Men", "Foil", "M")
+    epee = ev("Bulk Epee Men", "Epee", "M")
+    c.commit()
+    events = lg.list_events(c)
+    check("guess: Foil_Mens.csv -> Foil Men", lg.guess_event("Foil_Mens.csv", events) == foil)
+    check("guess: eventResults.csv -> no guess", lg.guess_event("eventResults.csv", events) is None)
+    check("guess: Saber_Womens.csv -> no guess (no such event)", lg.guess_event("Saber_Womens.csv", events) is None)
+    epee_csv = Path(work) / "epee.csv"
+    epee_csv.write_text("Place,Name,Club(s)\n1,ILIN Steven,USYD\n2,LI William,UNSW\n3T,NG Matthew,MQU\n3T,CHAN Theo,SUFC\n", encoding="utf-8")
+    files = [{"filename": "eventResults.csv", "data": RESULTS_FILE.read_bytes()},
+             {"filename": "Epee_Mens.csv", "data": epee_csv.read_bytes()}]
+    prev = lg.bulk_preview(c, files, {0: foil})
+    check("bulk preview: file 1 assigned by hand", prev["files"][0]["competition_id"] == foil and not prev["files"][0]["error"])
+    check("bulk preview: file 2 matched by name", prev["files"][1]["competition_id"] == epee and prev["files"][1]["guess_by"] == "file name")
+    dec = {}
+    for f in prev["files"]:
+        d = {}
+        for r in f["rows"]:
+            if r["status"] == "matched":
+                continue
+            if r["candidates"]:
+                d[str(r["index"])] = {"action": "match", "fencer_id": r["candidates"][0]["id"]}
+            else:
+                d[str(r["index"])] = {"action": "new", "gender": "M"}
+        dec[str(f["index"])] = d
+    res = lg.bulk_commit(c, files, {0: foil, 1: epee}, dec)
+    check("bulk commit saves both files", len(res) == 2 and all(r["saved"] > 0 for r in res), str(res))
+    n_foil = c.execute("SELECT COUNT(*) FROM results WHERE competition_id=?", (foil,)).fetchone()[0]
+    check("bulk commit: Foil event has its results", n_foil > 0, str(n_foil))
+
+    foil_w = ev("Bulk Foil Women", "Foil", "F")
+    epee_w = ev("Bulk Epee Women", "Epee", "F")
+    c.commit()
+    files2 = [{"filename": "Foil_Womens.csv", "data": RESULTS_FILE.read_bytes()},
+              {"filename": "Epee_Womens.csv", "data": epee_csv.read_bytes()}]
+    p2 = lg.bulk_preview(c, files2, {0: foil_w, 1: epee_w})
+    dec2 = {"0": {str(r["index"]): {"action": "new"} for r in p2["files"][0]["rows"]}}
+    try:
+        lg.bulk_commit(c, files2, {0: foil_w, 1: epee_w}, dec2)
+        check("bulk: missing decision in file 2 blocks the batch", False)
+    except ValueError as e:
+        check("bulk: missing decision in file 2 blocks the batch", "Epee_Womens.csv" in str(e), str(e))
+    left = c.execute("SELECT COUNT(*) FROM results WHERE competition_id IN (?, ?)", (foil_w, epee_w)).fetchone()[0]
+    check("bulk: nothing from the batch was saved (rolled back)", left == 0, str(left))
+
+    dup = lg.bulk_preview(c, files2, {0: foil_w, 1: foil_w})
+    check("bulk: same event twice is flagged on both files",
+          all(f["error"] for f in dup["files"]), str([f["error"] for f in dup["files"]]))
+    c.close()
+
+
+def test_match_by_competitors(work):
+    c = db.connect(Path(work) / "match.db")
+    db.init_db(c)
+    epee_ev = db.add_competition(c, name="M Epee Men", kind="event", event_date="2026-11-12",
+                                 weapon="Epee", event_gender="M", round_name="M")
+    db.add_competition(c, name="M Foil Men", kind="event", event_date="2026-11-12",
+                       weapon="Foil", event_gender="M", round_name="M")
+    for last, first in [("ILIN", "Steven"), ("LI", "William"), ("NG", "Matthew"), ("CHAN", "Theo")]:
+        fid = db.add_fencer(c, first, last, "M", "")
+        db.add_registration(c, epee_ev, fid, "Epee")
+    c.commit()
+    csv_bytes = b"Place,Name,Club(s)\n1,ILIN Steven,USYD\n2,LI William,UNSW\n3T,NG Matthew,MQU\n3T,CHAN Theo,SUFC\n"
+    prev = lg.bulk_preview(c, [{"filename": "eventResults (3).csv", "data": csv_bytes},
+                               {"filename": "eventResults (4).csv", "data": b"Place,Name\\n1,QQQ Nobody\\n2,ZZZ Nobody\\n"}])
+    f0, f1 = prev["files"]
+    check("competitors: file matched to the event its fencers entered",
+          f0["competition_id"] == epee_ev and f0["guess_by"] == "competitors",
+          str((f0["competition_id"], f0["guess_by"])))
+    check("competitors: file with no registered fencers is not guessed",
+          f1["competition_id"] is None and f1["error"] != "", str((f1["competition_id"], f1["error"])))
+    plan = lg.resolve_people(c, {"k": {"status": "new", "gender": "M", "first": "A", "last": "B"}}, {})
+    check("new person with no decision is added automatically", plan["k"]["action"] == "new")
+    c.close()
 
 
 if __name__ == "__main__":

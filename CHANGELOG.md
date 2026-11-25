@@ -26,3 +26,16 @@
 - Results: choose an existing event (created by the registration import). Manual new-event fields removed.
 - Reset & history: *Export all rankings* gives a ZIP of six files (Epee, Foil, Saber; Men and Women).
 - Tests: 47 checks, all pass.
+
+## Bulk results import
+- Results tab takes many FencingTime CSVs at once. Each file is matched to an event by name (weapon and Men/Women/Mixed words). The event can be changed per file.
+- Nothing is saved unless every file is ready. Saving runs in one transaction, so a failure part-way saves nothing.
+- Logic: `guess_event`, `bulk_preview`, `bulk_commit` in `sifl_logic.py`; `commit_results` gained `commit=False`.
+- Routes: `/api/results/bulk_preview`, `/api/results/bulk_commit`.
+- Tests: 58 checks, all pass.
+
+## Workflow changes from the first test run
+- Registrations: only review cases are shown. Matched and new fencers are handled automatically. The result page lists the files, with an expandable list of new fencers added.
+- Registrations: weapon checkboxes removed from the UI (event type is inferred from the form).
+- Results: files are matched to events by the fencers they contain (`match_by_entrants`), with the file name as a fallback. The match is shown on each file.
+- Tests: 61 checks, all pass.

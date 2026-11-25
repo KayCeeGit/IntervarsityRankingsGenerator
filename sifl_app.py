@@ -198,6 +198,34 @@ def post_results_commit(conn, body):
     return out
 
 
+def _bulk_files(body):
+    out = []
+    for f in body.get("files") or []:
+        if not f.get("data_base64"):
+            raise ValueError("A file has no data")
+        out.append({"filename": f.get("filename") or "results.csv",
+                    "data": base64.b64decode(f["data_base64"])})
+    if not out:
+        raise ValueError("No files were uploaded")
+    return out
+
+
+def _bulk_assignments(body):
+    return {int(k): (int(v) if v not in (None, "") else None)
+            for k, v in (body.get("assignments") or {}).items()}
+
+
+def post_results_bulk_preview(conn, body):
+    return lg.bulk_preview(conn, _bulk_files(body), _bulk_assignments(body))
+
+
+def post_results_bulk_commit(conn, body):
+    files = _bulk_files(body)
+    backup = _backup()
+    saved = lg.bulk_commit(conn, files, _bulk_assignments(body), body.get("decisions") or {})
+    return {"files": saved, "backup": str(backup)}
+
+
 def _round_defaults(body):
     """Round name comes from the file name; event date is today."""
     stem = Path((body.get("file") or {}).get("filename") or "Round").stem.strip() or "Round"
@@ -207,6 +235,8 @@ def _round_defaults(body):
 def post_registrations_preview(conn, body):
     out = lg.preview_registrations(conn, _decode_file(body), tuple(body.get("mixed_weapons") or []))
     out["round_name"], out["event_date"] = _round_defaults(body)
+    out["counts"] = {s: sum(1 for p in out["people"] if p["status"] == s)
+                     for s in ("matched", "new", "review")}
     return out
 
 
@@ -262,6 +292,8 @@ POST_ROUTES = {
     "/api/event/clear": post_event_clear,
     "/api/results/preview": post_results_preview,
     "/api/results/commit": post_results_commit,
+    "/api/results/bulk_preview": post_results_bulk_preview,
+    "/api/results/bulk_commit": post_results_bulk_commit,
     "/api/registrations/preview": post_registrations_preview,
     "/api/registrations/commit": post_registrations_commit,
     "/api/fencer/update": post_fencer_update,
@@ -270,7 +302,7 @@ POST_ROUTES = {
     "/api/reset": post_reset,
 }
 WRITE_ROUTES = {"/api/backup", "/api/event/export", "/api/event/delete", "/api/event/clear",
-                "/api/results/commit", "/api/registrations/commit", "/api/fencer/update",
+                "/api/results/commit", "/api/results/bulk_commit", "/api/registrations/commit", "/api/fencer/update",
                 "/api/fencer/alias", "/api/fencer/merge", "/api/reset"}
 GET_ROUTES = {
     "/api/state": get_state,

@@ -1,0 +1,39 @@
+ID,First name,Last name,Weapon,Gender,Ranking,Points,Club
+ID_005,William,Chen,Epee,M,1,34,Sydney University Fencing Club
+ID_012,Cian,Connolly,Epee,M,1,34,Macquarie University Fencing
+ID_030,Sora,Robinson,Epee,M,3,32,Sydney University Fencing Club
+ID_002,Matt,Baker,Epee,M,4,26,UNSW Fencing Club
+ID_007,Tom,Linigen,Epee,M,5,22,Macquarie University Fencing
+ID_006,Zachary,Renouf,Epee,M,5,22,Sydney University Fencing Club
+ID_004,Mark,Morris,Epee,M,7,20,Sydney University Fencing Club
+ID_003,Dan,Zhang,Epee,M,7,20,UNSW Fencing Club
+ID_017,Lachlan,Humphery,Epee,M,9,18,Macquarie University Fencing
+ID_011,Reagan,Clarke,Epee,M,10,16,Macquarie University Fencing
+ID_015,Jarrod,Su,Epee,M,10,16,UNSW Fencing Club
+ID_038,William,Deller,Epee,M,12,14,UNSW Fencing Club
+ID_008,Rui,Perera,Epee,M,12,14,Sydney University Fencing Club
+ID_022,Brian,Paou,Epee,M,14,12,Macquarie University Fencing
+ID_016,Derek,Renouf,Epee,M,14,12,Sydney University Fencing Club
+ID_024,Jasper,Renouf,Epee,M,14,12,Sydney University Fencing Club
+ID_031,Nicholas,Chen,Epee,M,17,8,Sydney University Fencing Club
+ID_037,Thomas,Deller,Epee,M,17,8,UNSW Fencing Club
+ID_020,Hayden,Leung,Epee,M,17,8,Sydney University Fencing Club
+ID_019,Jonathan,Shih,Epee,M,17,8,UNSW Fencing Club
+ID_046,Brandon,Azari,Epee,M,21,4,Macquarie University Fencing
+ID_023,Steven,Ilin,Epee,M,21,4,UNSW Fencing Club
+ID_041,Anthony,Kolat,Epee,M,21,4,Macquarie University Fencing
+ID_027,Xavier,Lea,Epee,M,21,4,Sydney University Fencing Club
+ID_087,Oskar,Biggart,Epee,M,25,0,Macquarie University Fencing
+ID_098,Yiming,Chen,Epee,M,25,0,Sydney University Fencing Club
+ID_089,Alexander,Clancy,Epee,M,25,0,UNSW Fencing Club
+ID_111,Julius,Corradini,Epee,M,25,0,UNSW Fencing Club
+ID_108,Ronan,Herbert,Epee,M,25,0,UNSW Fencing Club
+ID_045,Bingyu (Edward),Huang,Epee,M,25,0,UNSW Fencing Club
+ID_110,Flynn,Larkin,Epee,M,25,0,UNSW Fencing Club
+ID_086,Daniel,Mautner,Epee,M,25,0,Sydney University Fencing Club
+ID_099,Alex,Su,Epee,M,25,0,Sydney University Fencing Club
+ID_106,Matthew,Sun,Epee,M,25,0,Macquarie University Fencing
+ID_102,Isaac,Wong,Epee,M,25,0,Sydney University Fencing Club
+ID_091,Ruize,Xu,Epee,M,25,0,UNSW Fencing Club
+ID_116,Nannan Ethan,Zhu,Epee,M,25,0,Sydney University Fencing Club
+ID_115,Youshang Daniel,Zhu,Epee,M,25,0,Sydney University Fencing Club

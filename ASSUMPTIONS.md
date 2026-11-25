@@ -51,3 +51,8 @@ Each item says what the system assumes, where it lives in the code, and what wou
 34. **Event date for registrations** is the server's date on the day of the import, not the date the form was filled in. There is no screen to change an event's date yet. If the date matters for the reset, that needs a fix.
 35. **Results only go into existing events.** Events are created by the registration import, so a Mixed event or any event with no registrations must be made by registering it first.
 36. **Export all rankings** gives Men and Women files for each weapon in one ZIP. Each file includes fencers with zero points.
+
+37. **New fencers from a registration form are added automatically** (no review screen). Only people with a flag (duplicate entries that differ, a gender or club conflict, or a name that is similar to an existing fencer) need a decision. The gender for a new fencer comes from the form.
+38. **No Mixed events from registrations.** The weapon checkboxes were removed, so the registration import only creates weapon x Men/Women events. The backend still accepts a Mixed option, but nothing in the UI sends it. Mixed events would need a way to be created again.
+39. **Results files are matched to events by their competitors.** Each file's fencers are compared with each open event's registered fencers (Jaccard score). The best event is used if its score is at least 0.5 and it is the only best. Otherwise the file name is tried. Events that already have results are skipped.
+40. **A competitor in a results file must match exactly one fencer** by name in the database. New fencers in a results file do not help the match, so a file of mostly new people will fall back to the file name.

@@ -9,16 +9,16 @@ Files live in the same folder:
 - `exports/`: the files the app creates (fencer import, competitor and seeding files), in a folder per round or event.
 
 ## Before a competition
-1. **Registrations tab.** Pick the Google Form `.xlsx` file and tick any weapon to run as a Mixed event. The round is named after the file (rename the file to change it) and the event date is today. Click *Check registrations*.
-2. Review each person. Green "matched" rows are set automatically. Yellow "review" rows show suggestions. Choose the right fencer, create a new fencer (pick a gender if needed), or skip.
-3. Click *Create events and files*. The events are created and the files are written to `exports/<round name>/`.
-4. Import the fencer file into FencingTime, then each event's competitor and seeding files.
+1. **Registrations tab.** Pick the Google Form `.xlsx` file and click *Check registrations*. The round is named after the file and the event date is today.
+2. Only people who need a decision are listed. Matched and new fencers are handled automatically.
+3. Choose the fencer, create a new one, or skip each listed person, then click *Create events and files*.
+4. The page shows the files created. Click *New fencers added* to see who was added.
+5. Import the fencer file into FencingTime, then each event's competitor and seeding files.
 
 ## After a competition
-1. Export results from FencingTime as `eventResults.csv`.
-2. **Results tab.** Choose the event. Events come from the registrations, so weapon, gender, name and date are already set. Upload the file and click *Check file*.
-3. Check each row's decision. Review rows show suggestions. Choose a fencer, create a new one, or skip.
-4. Click *Save results*. Points update straight away.
+1. Export results from FencingTime Live. Each file is called `eventResults (n).csv`, so keep the files as they are.
+2. **Results tab.** Select all the CSVs at once. Each file is matched to its event by the competitors in it, and by the file name if that fails. Check the event shown on each file and change it if needed.
+3. Click *Check files*, fix any red rows, then *Save all results*. Nothing is saved until every file is ready.
 
 ## Rankings
 The Rankings tab shows points for one weapon, with an All / Men / Women filter. *Export CSV* saves the same list in seeding format.
