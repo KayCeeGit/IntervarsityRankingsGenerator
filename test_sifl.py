@@ -240,6 +240,18 @@ def test_http(work):
         check("HTTP: state reports fencers", st["counts"]["fencers"] > 0, str(st["counts"]))
         rk = json.loads(urllib.request.urlopen(base + "/api/rankings?weapon=Foil&gender=M").read())
         check("HTTP: Foil men rankings", rk["rows"] and rk["rows"][0]["Points"] >= 0)
+        with urllib.request.urlopen(base + "/api/export/all_rankings") as zr:
+            zdata = zr.read()
+        import zipfile, io as _io
+        names = zipfile.ZipFile(_io.BytesIO(zdata)).namelist()
+        check("HTTP: all-weapons export has 6 files", len(names) == 6, str(names))
+        rb = json.dumps({"file": {"filename": REG_FILE.name, "data_base64": b64(REG_FILE)},
+                         "mixed_weapons": []}).encode()
+        rq = urllib.request.Request(base + "/api/registrations/preview", data=rb, method="POST",
+                                    headers={"Content-Type": "application/json"})
+        rp = json.loads(urllib.request.urlopen(rq).read())
+        check("HTTP: round name taken from file name", rp["round_name"] == REG_FILE.stem, rp["round_name"])
+        check("HTTP: event date defaults to today", len(rp["event_date"]) == 10)
         req = urllib.request.Request(base + "/api/backup", data=b"{}", method="POST",
                                      headers={"Content-Type": "application/json"})
         bk = json.loads(urllib.request.urlopen(req).read())

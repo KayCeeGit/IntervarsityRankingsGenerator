@@ -8,9 +8,12 @@ Every write takes a backup of sifl.db first.
 """
 import argparse
 import base64
+import datetime as _dt
+import io
 import json
 import threading
 import traceback
+import zipfile
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -143,6 +146,18 @@ def get_export_rankings(conn, q, body):
     return {"__csv__": True, "name": name, "text": text}
 
 
+def get_export_all_rankings(conn, q, body):
+    """One ZIP with six seeding-format files: each weapon, Men and Women."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for weapon in db.WEAPONS:
+            for gender in db.GENDERS:
+                text = lg.csv_text(lg.SEEDING_COLUMNS, lg.ranking_table(conn, weapon, gender))
+                z.writestr(f"rankings_{weapon}_{lg.GENDER_FILE[gender]}.csv", text)
+    name = f"SIFL_rankings_{_dt.date.today().isoformat()}.zip"
+    return {"__bytes__": True, "name": name, "data": buf.getvalue(), "ctype": "application/zip"}
+
+
 # ---------- write handlers: (conn, body) -> data; these run under the lock with a backup ----------
 
 def post_backup(conn, body):
@@ -183,14 +198,25 @@ def post_results_commit(conn, body):
     return out
 
 
+def _round_defaults(body):
+    """Round name comes from the file name; event date is today."""
+    stem = Path((body.get("file") or {}).get("filename") or "Round").stem.strip() or "Round"
+    return stem, _dt.date.today().isoformat()
+
+
 def post_registrations_preview(conn, body):
-    return lg.preview_registrations(conn, _decode_file(body), tuple(body.get("mixed_weapons") or []))
+    out = lg.preview_registrations(conn, _decode_file(body), tuple(body.get("mixed_weapons") or []))
+    out["round_name"], out["event_date"] = _round_defaults(body)
+    return out
 
 
 def post_registrations_commit(conn, body):
+    default_round, default_date = _round_defaults(body)
+    round_name = db.clean(default_round)
+    event_date = default_date
     backup = _backup()
     out = lg.commit_registrations(
-        conn, _decode_file(body), body.get("round_name", ""), body.get("event_date", ""),
+        conn, _decode_file(body), round_name, event_date,
         tuple(body.get("mixed_weapons") or []), body.get("decisions") or {}, CONFIG["exports"])
     out["files"] = _file_info(out.pop("files"))
     out["backup"] = str(backup)
@@ -255,6 +281,7 @@ GET_ROUTES = {
     "/api/fencer": get_fencer,
     "/api/resets": get_resets,
     "/api/export/rankings": get_export_rankings,
+    "/api/export/all_rankings": get_export_all_rankings,
 }
 
 
@@ -306,6 +333,9 @@ class Handler(BaseHTTPRequestHandler):
             if path not in GET_ROUTES:
                 return self._error(404, "Not found")
             data = self._run(GET_ROUTES[path], q, {})
+            if isinstance(data, dict) and data.get("__bytes__"):
+                return self._send(200, data["data"], data["ctype"],
+                                  {"Content-Disposition": f'attachment; filename="{data["name"]}"'})
             if isinstance(data, dict) and data.get("__csv__"):
                 return self._send(200, data["text"].encode("utf-8"), "text/csv; charset=utf-8",
                                   {"Content-Disposition": f'attachment; filename="{data["name"]}"'})

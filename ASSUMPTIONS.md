@@ -23,7 +23,7 @@ Each item says what the system assumes, where it lives in the code, and what wou
 14. **Events:** one event per weapon and gender from the form. "Epee and Foil" creates entries for both weapons. A weapon can be run as Mixed by ticking it on the Registrations tab.
 15. **Duplicate entries:** the latest entry per person and weapon is kept (by timestamp, then row). If the two entries differ in gender or club, the person is flagged for review.
 16. **Gender in the form** decides which Men's or Women's event a person enters. A person with a fencer record of a different gender is flagged.
-17. **Round name:** one round can be imported once. The round name also names the export folder.
+17. **Round name:** taken from the registration file name without its extension. A file whose name has already been used is refused, so rename it to import again. The round name also names the export folder.
 18. **Late changes on the day:** a round can only be imported once. A late entry needs a second round import with the extra entries. There is no screen yet to add or remove one registration in an existing event. This is a gap to close.
 
 ## Seeding and rankings
@@ -48,3 +48,6 @@ Each item says what the system assumes, where it lives in the code, and what wou
 31. **Dependencies:** Python 3.10 or later, pandas and openpyxl. The web app uses only the standard library.
 32. **Excel files** are read with pandas (openpyxl). The registration file must have the Google Form headers ("Timestamp", "First Name", "Last Name", "Which event...", "Will you be fencing...", "Who would you like to represent?").
 33. **Windows packaging** (`.exe`) is not done yet. `run_sifl.bat` runs the app from source.
+34. **Event date for registrations** is the server's date on the day of the import, not the date the form was filled in. There is no screen to change an event's date yet. If the date matters for the reset, that needs a fix.
+35. **Results only go into existing events.** Events are created by the registration import, so a Mixed event or any event with no registrations must be made by registering it first.
+36. **Export all rankings** gives Men and Women files for each weapon in one ZIP. Each file includes fencers with zero points.

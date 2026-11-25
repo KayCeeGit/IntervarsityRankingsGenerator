@@ -104,19 +104,10 @@ a { color: var(--accent); }
 <section id="tab-results">
   <div class="card">
     <h2>Import FencingTime results</h2>
+    <p class="muted">Choose the event. Events are created from the Registrations tab, so the weapon, gender, name and date come from there.</p>
     <div class="row">
-      <label>Event
-        <select id="rs-event"></select></label>
+      <label>Event <select id="rs-event"></select></label>
       <label>Upload eventResults.csv <input type="file" id="rs-file" accept=".csv"></label>
-    </div>
-    <div id="rs-new" class="hidden">
-      <div class="row">
-        <label>Event name <input id="rs-new-name" placeholder="e.g. Sydney Open 2026 - Foil Men"></label>
-        <label>Date <input type="date" id="rs-new-date"></label>
-        <label>Weapon <select id="rs-new-weapon"></select></label>
-        <label>Gender <select id="rs-new-gender">
-          <option value="M">Men</option><option value="F">Women</option><option value="X">Mixed</option></select></label>
-      </div>
     </div>
     <div class="row"><button id="rs-preview">Check file</button></div>
     <div id="rs-out"></div>
@@ -127,17 +118,11 @@ a { color: var(--accent); }
 <section id="tab-registrations">
   <div class="card">
     <h2>Import Google Form registrations</h2>
+    <p class="muted">The round is named after the file, and the event date is today. Rename the file to change the round name.</p>
     <div class="row">
-      <label>Round name <input id="rg-round" placeholder="e.g. Round 2 2026"></label>
-      <label>Date <input type="date" id="rg-date"></label>
       <label>Registration file (.xlsx) <input type="file" id="rg-file" accept=".xlsx,.xls"></label>
     </div>
-    <div class="row">
-      <span class="muted">Run as a mixed event:</span>
-      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Epee"> Epee</label>
-      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Foil"> Foil</label>
-      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" class="rg-mixed" value="Saber"> Saber</label>
-    </div>
+  
     <div class="row"><button id="rg-preview">Check registrations</button></div>
     <div id="rg-out"></div>
   </div>
@@ -179,7 +164,7 @@ a { color: var(--accent); }
     <div class="row">
       <label>Note <input id="rt-note" placeholder="e.g. Start of 2027 season"></label>
       <button class="danger" id="rt-go">Reset all points</button>
-      <a class="btn secondary" href="/api/export/rankings?weapon=Epee">Export Epee rankings</a>
+      <a class="btn secondary" href="/api/export/all_rankings">Export all rankings (all weapons)</a>
     </div>
   </div>
   <div class="card">
@@ -273,12 +258,9 @@ let eventsCache = [];
 async function loadEventOptions() {
   const data = await api("/api/events");
   eventsCache = data.events;
-  const opts = [`<option value="">+ New event</option>`].concat(
-    eventsCache.map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.event_date)})</option>`));
-  $("rs-event").innerHTML = opts.join("");
-  $("rs-new-weapon").innerHTML = WEAPONS.map((w) => `<option>${w}</option>`).join("");
-  $("rs-event").onchange = () => $("rs-new").classList.toggle("hidden", $("rs-event").value !== "");
-  $("rs-new").classList.toggle("hidden", $("rs-event").value !== "");
+  $("rs-event").innerHTML = eventsCache.length
+    ? eventsCache.map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.event_date)})</option>`).join("")
+    : `<option value="">No events yet. Import registrations first</option>`;
 }
 
 function decisionOptions(item, eventGender) {
@@ -304,9 +286,8 @@ $("rs-preview").onclick = async () => {
   try {
     const file = await readFile($("rs-file"));
     const ev = $("rs-event").value;
-    const spec = ev ? { competition_id: Number(ev) } : {
-      new: { name: $("rs-new-name").value, event_date: $("rs-new-date").value,
-             weapon: $("rs-new-weapon").value, event_gender: $("rs-new-gender").value } };
+    if (!ev) throw new Error("Choose an event. Import the registrations first to create it.");
+    const spec = { competition_id: Number(ev) };
     const data = await api("/api/results/preview", { file, event: spec });
     resultsState = { file, spec, data };
     renderResults();
@@ -398,7 +379,7 @@ function renderRegistrations() {
       <select class="rg-gender" data-key="${esc(p.key)}"><option value="">Gender from form (${esc(p.gender)})</option><option value="M">M</option><option value="F">F</option></select></td></tr>`;
   }).join("");
   $("rg-out").innerHTML = `${probs}
-    <p class="note">Events from this form:</p><ul>${events}</ul>
+    <p class="note">Round <b>${esc(d.round_name)}</b>, event date ${esc(d.event_date)}. Events from this form:</p><ul>${events}</ul>
     <div class="table-wrap"><table><thead><tr><th>Name</th><th>Gender</th><th>Club</th><th>Weapons</th><th>Match</th><th>Decision</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button id="rg-commit">Create events and files</button>
@@ -407,9 +388,6 @@ function renderRegistrations() {
 }
 
 async function commitRegistrations() {
-  const round = $("rg-round").value.trim();
-  const date = $("rg-date").value;
-  if (!round || !date) return toast("Enter a round name and date", true);
   const decisions = {};
   let missing = 0;
   document.querySelectorAll(".rg-dec").forEach((sel) => {
@@ -424,8 +402,7 @@ async function commitRegistrations() {
   });
   if (missing) return toast(`${missing} person(s) still need a decision`, true);
   try {
-    const out = await api("/api/registrations/commit", { file: regState.file, round_name: round, event_date: date,
-      mixed_weapons: mixedWeapons(), decisions });
+    const out = await api("/api/registrations/commit", { file: regState.file, mixed_weapons: mixedWeapons(), decisions });
     $("rg-out").innerHTML = `<p class="note">Created ${out.events.length} event(s) for ${esc(out.round)}.
       ${out.created.length ? "New fencers: " + esc(out.created.join(", ")) + "." : ""}</p>
       <p>Files (in ${esc(out.folder)}):</p><p>${fileLinks(out.files)}</p>

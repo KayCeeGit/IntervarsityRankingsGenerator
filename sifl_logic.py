@@ -517,7 +517,7 @@ def commit_registrations(conn, data, round_name, event_date, mixed_weapons, deci
     if not event_date:
         raise ValueError("Enter an event date")
     if conn.execute("SELECT 1 FROM competitions WHERE round_name = ?", (round_name,)).fetchone():
-        raise ValueError(f"A round called '{round_name}' already exists")
+        raise ValueError(f"A round called '{round_name}' already exists. Rename the file to import it as a new round")
     entries, problems = read_registration_file(data)
     if problems:
         raise ValueError("Fix these rows in the file first: " + "; ".join(problems))

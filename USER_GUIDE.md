@@ -9,14 +9,14 @@ Files live in the same folder:
 - `exports/`: the files the app creates (fencer import, competitor and seeding files), in a folder per round or event.
 
 ## Before a competition
-1. **Registrations tab.** Enter the round name and date, pick the Google Form `.xlsx` file, and tick any weapon to run as a Mixed event. Click *Check registrations*.
+1. **Registrations tab.** Pick the Google Form `.xlsx` file and tick any weapon to run as a Mixed event. The round is named after the file (rename the file to change it) and the event date is today. Click *Check registrations*.
 2. Review each person. Green "matched" rows are set automatically. Yellow "review" rows show suggestions. Choose the right fencer, create a new fencer (pick a gender if needed), or skip.
 3. Click *Create events and files*. The events are created and the files are written to `exports/<round name>/`.
 4. Import the fencer file into FencingTime, then each event's competitor and seeding files.
 
 ## After a competition
 1. Export results from FencingTime as `eventResults.csv`.
-2. **Results tab.** Choose the event (or *+ New event*, then give the name, date, weapon and gender). Upload the file and click *Check file*.
+2. **Results tab.** Choose the event. Events come from the registrations, so weapon, gender, name and date are already set. Upload the file and click *Check file*.
 3. Check each row's decision. Review rows show suggestions. Choose a fencer, create a new one, or skip.
 4. Click *Save results*. Points update straight away.
 
@@ -31,6 +31,8 @@ Lists every event. *View* shows results and registrations. *Export files* writes
 
 ## Reset
 Reset & history: *Reset all points* starts a new season for every weapon. Past results stay in history.
+
+*Export all rankings* downloads one ZIP with six seeding-format CSVs: Epee, Foil and Saber, each for Men and Women.
 
 ## Backup
 A backup is taken automatically before any change. *Back up now* makes an extra one.
